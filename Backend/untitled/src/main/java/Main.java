@@ -1,42 +1,22 @@
-import Config.JpaUtil;
-import Entity.User;
-import Entity.Wallet;
-import jakarta.persistence.EntityManager;
+import Entity.Balance;
+import Service.BalanceService;
+
+import java.math.BigDecimal;
+import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-        EntityManager em = null;
+        BalanceService balanceService = new BalanceService();
 
-        try {
-            em = JpaUtil.getEntityManager();
+        balanceService.addBalanceToUser(6L, "PLN", new BigDecimal("1000.00"));
+        balanceService.addBalanceToUser(6L, "USD", new BigDecimal("250.00"));
 
-            em.getTransaction().begin();
-
-            User user = new User(
-                    "Maciej",
-                    "Testowy",
-                    "maciej.testowy2@example.com",
-                    "example_hash_123"
-            );
-
-            Wallet wallet = new Wallet();
-            user.setWallet(wallet);
-
-            em.persist(user);
-
-            em.getTransaction().commit();
-
-            System.out.println("Użytkownik i portfel zapisani poprawnie.");
-        } catch (Exception e) {
-            if (em != null && em.getTransaction().isActive()) {
-                em.getTransaction().rollback();
-            }
-            e.printStackTrace();
-        } finally {
-            if (em != null && em.isOpen()) {
-                em.close();
-            }
-            JpaUtil.shutdown();
+        Balance usd = balanceService.getBalanceForUserAndCurrency(6L, "USD");
+        if (usd != null) {
+            System.out.println("Saldo USD: " + usd.getAmount());
         }
+
+        List<Balance> balances = balanceService.getBalancesForUser(6L);
+        System.out.println("Liczba sald: " + balances.size());
     }
 }
