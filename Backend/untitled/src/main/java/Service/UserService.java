@@ -2,43 +2,52 @@ package Service;
 
 import Config.JpaUtil;
 import DAO.UserDao;
+import DAO.WalletDao;
 import Entity.User;
 import Entity.Wallet;
 import Util.PasswordUtil;
 import jakarta.persistence.EntityManager;
+import org.mindrot.jbcrypt.BCrypt;
 
 import java.util.List;
 
 public class UserService {
 
-    public void createUser(String firstName, String lastName, String email, String plainPassword) {
+    public Long createUser(String firstName, String lastName, String email, String password) {
         EntityManager em = JpaUtil.getEntityManager();
 
         try {
             em.getTransaction().begin();
 
             UserDao userDao = new UserDao(em);
+            WalletDao walletDao = new WalletDao(em);
 
-            User existingUser = userDao.findByEmail(email);
-            if (existingUser != null) {
-                throw new RuntimeException("Użytkownik o podanym emailu już istnieje.");
-            }
+            User user = new User();
+            user.setFirstName(firstName);
+            user.setLastName(lastName);
+            user.setEmail(email);
 
-            String hashedPassword = PasswordUtil.hashPassword(plainPassword);
-
-            User user = new User(firstName, lastName, email, hashedPassword);
-
-            Wallet wallet = new Wallet();
-            user.setWallet(wallet);
+            String hashed = BCrypt.hashpw(password, BCrypt.gensalt());
+            user.setPasswordHash(hashed);
 
             userDao.save(user);
 
+
+            em.flush();
+
+            Wallet wallet = new Wallet();
+            wallet.setUser(user);
+            walletDao.save(wallet);
+
             em.getTransaction().commit();
+
+            return user.getId();
+
         } catch (Exception e) {
             if (em.getTransaction().isActive()) {
                 em.getTransaction().rollback();
             }
-            throw new RuntimeException("Błąd podczas tworzenia użytkownika.", e);
+            throw new RuntimeException("Błąd tworzenia użytkownika", e);
         } finally {
             em.close();
         }

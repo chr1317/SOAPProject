@@ -1,4 +1,4 @@
-package Soap;
+package SOAP;
 
 import Entity.AccountTransaction;
 import Entity.Balance;
