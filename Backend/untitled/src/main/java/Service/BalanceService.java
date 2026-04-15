@@ -1,10 +1,14 @@
 package Service;
 
 import Config.JpaUtil;
+import DAO.AccountTransactionDao;
 import DAO.BalanceDao;
 import DAO.UserDao;
 import DAO.WalletDao;
+import Entity.AccountTransaction;
 import Entity.Balance;
+import Entity.TransactionStatus;
+import Entity.TransactionType;
 import Entity.User;
 import Entity.Wallet;
 import jakarta.persistence.EntityManager;
@@ -20,9 +24,14 @@ public class BalanceService {
         try {
             em.getTransaction().begin();
 
+            if (amount == null || amount.signum() <= 0) {
+                throw new RuntimeException("Kwota musi być większa od zera.");
+            }
+
             UserDao userDao = new UserDao(em);
             WalletDao walletDao = new WalletDao(em);
             BalanceDao balanceDao = new BalanceDao(em);
+            AccountTransactionDao accountTransactionDao = new AccountTransactionDao(em);
 
             User user = userDao.findById(userId);
             if (user == null) {
@@ -37,9 +46,7 @@ public class BalanceService {
             String normalizedCurrency = currencyCode.toUpperCase();
 
             Balance balance = balanceDao.findByWalletAndCurrency(wallet, normalizedCurrency);
-            if (amount == null || amount.signum() <= 0) {
-                throw new RuntimeException("Kwota musi być większa od zera.");
-            }
+
             if (balance == null) {
                 balance = new Balance(wallet, normalizedCurrency, amount);
                 balanceDao.save(balance);
@@ -47,6 +54,16 @@ public class BalanceService {
                 balance.setAmount(balance.getAmount().add(amount));
                 balanceDao.update(balance);
             }
+
+            AccountTransaction transaction = new AccountTransaction();
+            transaction.setWallet(wallet);
+            transaction.setTransactionType(TransactionType.DEPOSIT);
+            transaction.setStatus(TransactionStatus.COMPLETED);
+            transaction.setCurrencyCode(normalizedCurrency);
+            transaction.setAmount(amount);
+            transaction.setDescription("Deposit to wallet");
+
+            accountTransactionDao.save(transaction);
 
             em.getTransaction().commit();
         } catch (Exception e) {

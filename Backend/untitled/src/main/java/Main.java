@@ -1,22 +1,31 @@
-import Entity.Balance;
-import Service.BalanceService;
+import Service.ExchangeService;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-        BalanceService balanceService = new BalanceService();
+        ExchangeService exchangeService = new ExchangeService();
 
-        balanceService.addBalanceToUser(6L, "PLN", new BigDecimal("1000.00"));
-        balanceService.addBalanceToUser(6L, "USD", new BigDecimal("250.00"));
+        exchangeService.exchangeCurrency(
+                6L,                 // podstaw istniejące ID usera
+                "PLN",
+                "USD",
+                new BigDecimal("100.00"),
+                new BigDecimal("0.25000000")
+        );
 
-        Balance usd = balanceService.getBalanceForUserAndCurrency(6L, "USD");
-        if (usd != null) {
-            System.out.println("Saldo USD: " + usd.getAmount());
+        List<ExchangeTransaction> transactions = exchangeService.getTransactionsForUser(3L);
+
+        System.out.println("Liczba transakcji: " + transactions.size());
+        for (ExchangeTransaction t : transactions) {
+            System.out.println(
+                    t.getId() + " | "
+                            + t.getFromCurrency() + " -> " + t.getToCurrency()
+                            + " | " + t.getSourceAmount()
+                            + " | " + t.getTargetAmount()
+                            + " | " + t.getExchangeRate()
+            );
         }
-
-        List<Balance> balances = balanceService.getBalancesForUser(6L);
-        System.out.println("Liczba sald: " + balances.size());
     }
 }
