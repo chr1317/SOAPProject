@@ -100,6 +100,41 @@ public class BalanceService {
         }
     }
 
+    public List<String> getUserCurrencies(Long userId) {
+        EntityManager em = JpaUtil.getEntityManager();
+
+        try {
+            if (userId == null) {
+                throw new RuntimeException("User ID nie może być nullem.");
+            }
+
+            UserDao userDao = new UserDao(em);
+            WalletDao walletDao = new WalletDao(em);
+            BalanceDao balanceDao = new BalanceDao(em);
+
+            User user = userDao.findById(userId);
+            if (user == null) {
+                throw new RuntimeException("Użytkownik o id " + userId + " nie istnieje.");
+            }
+
+            Wallet wallet = walletDao.findByUser(user);
+            if (wallet == null) {
+                throw new RuntimeException("Portfel użytkownika nie istnieje.");
+            }
+
+            List<Balance> balances = balanceDao.findByWallet(wallet);
+
+            return balances.stream()
+                    .filter(b -> b.getAmount().compareTo(BigDecimal.ZERO) > 0)
+                    .map(Balance::getCurrencyCode)
+                    .distinct()
+                    .toList();
+
+        } finally {
+            em.close();
+        }
+    }
+
     public Balance getBalanceForUserAndCurrency(Long userId, String currencyCode) {
         EntityManager em = JpaUtil.getEntityManager();
 

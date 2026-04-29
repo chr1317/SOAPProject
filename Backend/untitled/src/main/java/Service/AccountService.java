@@ -17,20 +17,93 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 
-public class ExchangeService {
+public class AccountService {
 
     private final ExchangeRateProvider exchangeRateProvider;
 
-    public ExchangeService() {
+    public AccountService() {
         this.exchangeRateProvider = new LithuanianBankExchangeRateProvider();
     }
-    public ExchangeService(ExchangeRateProvider exchangeRateProvider) {
+    public AccountService(ExchangeRateProvider exchangeRateProvider) {
         this.exchangeRateProvider = exchangeRateProvider;
+    }
+
+    public void withdrawBalance(Long userId, String currency, BigDecimal amount) {
+
+        EntityManager em = JpaUtil.getEntityManager();
+
+        try {
+            em.getTransaction().begin();
+
+            if (userId == null) {
+                throw new RuntimeException("User ID nie może być nullem.");
+            }
+
+            if (currency == null) {
+                throw new RuntimeException("Waluta nie może być nullem.");
+            }
+
+            if (amount == null || amount.signum() <= 0) {
+                throw new RuntimeException("Kwota musi być większa od zera.");
+            }
+
+            String normalizedCurrency = currency.toUpperCase();
+
+            UserDao userDao = new UserDao(em);
+            WalletDao walletDao = new WalletDao(em);
+            BalanceDao balanceDao = new BalanceDao(em);
+            AccountTransactionDao accountTransactionDao = new AccountTransactionDao(em);
+
+            User user = userDao.findById(userId);
+            if (user == null) {
+                throw new RuntimeException("Użytkownik nie istnieje.");
+            }
+
+            Wallet wallet = walletDao.findByUser(user);
+            if (wallet == null) {
+                throw new RuntimeException("Portfel nie istnieje.");
+            }
+
+            Balance balance = balanceDao.findByWalletAndCurrency(wallet, normalizedCurrency);
+            if (balance == null) {
+                throw new RuntimeException("Brak salda dla waluty " + normalizedCurrency);
+            }
+
+            if (balance.getAmount().compareTo(amount) < 0) {
+                throw new RuntimeException("Niewystarczające środki.");
+            }
+
+            // odejmujemy
+            balance.setAmount(balance.getAmount().subtract(amount));
+            balanceDao.update(balance);
+
+            // zapis transakcji
+            AccountTransaction tx = new AccountTransaction();
+            tx.setWallet(wallet);
+            tx.setTransactionType(TransactionType.WITHDRAW);
+            tx.setStatus(TransactionStatus.COMPLETED);
+            tx.setCurrencyCode(normalizedCurrency);
+            tx.setAmount(amount);
+            tx.setDescription("Withdraw");
+
+            accountTransactionDao.save(tx);
+
+            em.getTransaction().commit();
+
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw new RuntimeException("Błąd withdraw.", e);
+        } finally {
+            em.close();
+        }
     }
 
     public List<String> getAvailableCurrencyCodes() {
         return exchangeRateProvider.getAvailableCurrencyCodes();
     }
+
     public void exchangeCurrency(Long userId,
                                  String fromCurrency,
                                  String toCurrency,

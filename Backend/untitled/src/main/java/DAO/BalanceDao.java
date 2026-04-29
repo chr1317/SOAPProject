@@ -45,4 +45,5 @@ public class BalanceDao {
                 .setParameter("wallet", wallet)
                 .getResultList();
     }
+
 }

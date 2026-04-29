@@ -1,10 +1,9 @@
 package SOAP;
 
-import Entity.AccountTransaction;
 import Entity.Balance;
 import Service.AccountHistoryService;
 import Service.BalanceService;
-import Service.ExchangeService;
+import Service.AccountService;
 import jakarta.jws.WebMethod;
 import jakarta.jws.WebParam;
 import jakarta.jws.WebService;
@@ -17,7 +16,7 @@ import java.util.stream.Collectors;
 public class AccountSoapService {
 
     private final BalanceService balanceService = new BalanceService();
-    private final ExchangeService exchangeService = new ExchangeService();
+    private final AccountService exchangeService = new AccountService();
     private final AccountHistoryService accountHistoryService = new AccountHistoryService();
 
     @WebMethod
@@ -96,6 +95,32 @@ public class AccountSoapService {
             return exchangeService.getAvailableCurrencyCodes();
         } catch (Exception e) {
             return List.of("Błąd pobierania listy walut: " + e.getMessage());
+        }
+    }
+
+    @WebMethod
+    public String withdrawBalance(
+            @WebParam(name = "userId") Long userId,
+            @WebParam(name = "currency") String currency,
+            @WebParam(name = "amount") String amount
+    ) {
+        try {
+            exchangeService.withdrawBalance(
+                    userId,
+                    currency,
+                    new BigDecimal(amount)
+            );
+            return "Wypłata wykonana poprawnie.";
+        } catch (Exception e) {
+            return "Błąd wypłaty: " + e.getMessage();
+        }
+    }
+    @WebMethod
+    public List<String> getUserCurrencies(@WebParam(name = "userId") Long userId) {
+        try {
+            return balanceService.getUserCurrencies(userId);
+        } catch (Exception e) {
+            return List.of("Błąd pobierania walut użytkownika: " + e.getMessage());
         }
     }
 
