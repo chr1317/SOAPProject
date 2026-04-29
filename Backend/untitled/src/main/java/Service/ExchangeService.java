@@ -15,14 +15,26 @@ import jakarta.persistence.EntityManager;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
 
 public class ExchangeService {
 
+    private final ExchangeRateProvider exchangeRateProvider;
+
+    public ExchangeService() {
+        this.exchangeRateProvider = new LithuanianBankExchangeRateProvider();
+    }
+    public ExchangeService(ExchangeRateProvider exchangeRateProvider) {
+        this.exchangeRateProvider = exchangeRateProvider;
+    }
+
+    public List<String> getAvailableCurrencyCodes() {
+        return exchangeRateProvider.getAvailableCurrencyCodes();
+    }
     public void exchangeCurrency(Long userId,
                                  String fromCurrency,
                                  String toCurrency,
-                                 BigDecimal sourceAmount,
-                                 BigDecimal exchangeRate) {
+                                 BigDecimal sourceAmount) {
 
         EntityManager em = JpaUtil.getEntityManager();
 
@@ -41,15 +53,16 @@ public class ExchangeService {
                 throw new RuntimeException("Kwota źródłowa musi być większa od zera.");
             }
 
-            if (exchangeRate == null || exchangeRate.signum() <= 0) {
-                throw new RuntimeException("Kurs wymiany musi być większy od zera.");
-            }
-
             String normalizedFrom = fromCurrency.toUpperCase();
             String normalizedTo = toCurrency.toUpperCase();
 
             if (normalizedFrom.equals(normalizedTo)) {
                 throw new RuntimeException("Waluta źródłowa i docelowa nie mogą być takie same.");
+            }
+
+            BigDecimal exchangeRate = exchangeRateProvider.getExchangeRate(normalizedFrom, normalizedTo);
+            if (exchangeRate == null || exchangeRate.signum() <= 0) {
+                throw new RuntimeException("Nie udało się pobrać poprawnego kursu wymiany.");
             }
 
             UserDao userDao = new UserDao(em);
@@ -100,7 +113,7 @@ public class ExchangeService {
             accountTransaction.setSourceAmount(sourceAmount);
             accountTransaction.setTargetAmount(targetAmount);
             accountTransaction.setExchangeRate(exchangeRate);
-            accountTransaction.setDescription("Currency exchange");
+            accountTransaction.setDescription("Currency exchange via Bank of Lithuania");
 
             accountTransactionDao.save(accountTransaction);
 

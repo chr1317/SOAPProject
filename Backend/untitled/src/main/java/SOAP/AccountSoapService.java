@@ -75,20 +75,27 @@ public class AccountSoapService {
             @WebParam(name = "userId") Long userId,
             @WebParam(name = "fromCurrency") String fromCurrency,
             @WebParam(name = "toCurrency") String toCurrency,
-            @WebParam(name = "sourceAmount") String sourceAmount,
-            @WebParam(name = "exchangeRate") String exchangeRate
+            @WebParam(name = "sourceAmount") String sourceAmount
     ) {
         try {
             exchangeService.exchangeCurrency(
                     userId,
                     fromCurrency,
                     toCurrency,
-                    new BigDecimal(sourceAmount),
-                    new BigDecimal(exchangeRate)
+                    new BigDecimal(sourceAmount)
             );
             return "Wymiana walut wykonana poprawnie.";
         } catch (Exception e) {
             return "Błąd wymiany walut: " + e.getMessage();
+        }
+    }
+
+    @WebMethod
+    public List<String> getAvailableCurrencyCodes() {
+        try {
+            return exchangeService.getAvailableCurrencyCodes();
+        } catch (Exception e) {
+            return List.of("Błąd pobierania listy walut: " + e.getMessage());
         }
     }
 
