@@ -12,7 +12,7 @@ public class User {
     private Long id;
 
     @Lob
-    @Column(name = "avatar")
+    @Column(name = "avatar", columnDefinition = "LONGBLOB")
     private byte[] avatar;
 
     @Column(name = "first_name", nullable = false, length = 100)
