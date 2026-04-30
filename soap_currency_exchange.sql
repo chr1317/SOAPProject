@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 15, 2026 at 12:56 PM
+-- Generation Time: Apr 30, 2026 at 10:07 PM
 -- Wersja serwera: 10.4.32-MariaDB
--- Wersja PHP: 8.0.30
+-- Wersja PHP: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -119,16 +119,17 @@ CREATE TABLE `users` (
   `last_name` varchar(100) NOT NULL,
   `email` varchar(150) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `avatar` longblob DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `first_name`, `last_name`, `email`, `password_hash`, `created_at`) VALUES
-(1, 'Jan', 'Kowalski', 'jan.kowalski@example.com', '$2a$10$exampleHash1234567890', '2026-04-15 10:50:00'),
-(2, 'Anna', 'Nowak', 'anna.nowak@example.com', '$2a$10$exampleHash0987654321', '2026-04-15 10:50:00');
+INSERT INTO `users` (`id`, `first_name`, `last_name`, `email`, `password_hash`, `created_at`, `avatar`) VALUES
+(1, 'Jan', 'Kowalski', 'jan.kowalski@example.com', '$2a$10$exampleHash1234567890', '2026-04-15 10:50:00', NULL),
+(2, 'Anna', 'Nowak', 'anna.nowak@example.com', '$2a$10$exampleHash0987654321', '2026-04-15 10:50:00', NULL);
 
 -- --------------------------------------------------------
 
