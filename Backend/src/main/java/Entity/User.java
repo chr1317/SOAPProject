@@ -11,6 +11,10 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Lob
+    @Column(name = "avatar")
+    private byte[] avatar;
+
     @Column(name = "first_name", nullable = false, length = 100)
     private String firstName;
 
@@ -41,6 +45,14 @@ public class User {
 
     public Long getId() {
         return id;
+    }
+
+    public byte[] getAvatar() {
+        return avatar;
+    }
+
+    public void setAvatar(byte[] avatar) {
+        this.avatar = avatar;
     }
 
     public String getFirstName() {

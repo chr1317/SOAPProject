@@ -1,14 +1,22 @@
 package SOAP;
 
+import Config.JpaUtil;
+import DAO.UserDao;
 import Entity.User;
 import Service.UserService;
+import jakarta.activation.DataHandler;
 import jakarta.jws.WebMethod;
 import jakarta.jws.WebParam;
 import jakarta.jws.WebService;
+import jakarta.persistence.EntityManager;
+import jakarta.xml.ws.soap.MTOM;
 
+import jakarta.mail.util.ByteArrayDataSource;
+import java.io.InputStream;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@MTOM
 @WebService
 public class UserSoapService {
 
@@ -31,6 +39,70 @@ public class UserSoapService {
             return "Użytkownik utworzony poprawnie.";
         } catch (Exception e) {
             return "Błąd tworzenia użytkownika: " + e.getMessage();
+        }
+    }
+
+    @WebMethod
+    public String uploadAvatar(
+            @WebParam(name = "userId") Long userId,
+            @WebParam(name = "file") DataHandler file
+    ) {
+        EntityManager em = null;
+
+        try {
+            em = JpaUtil.getEntityManager();
+            em.getTransaction().begin();
+
+            User user = new UserDao(em).findById(userId);
+            if (user == null) {
+                throw new RuntimeException("Użytkownik nie istnieje.");
+            }
+
+            try (InputStream input = file.getInputStream()) {
+                byte[] bytes = input.readAllBytes();
+                user.setAvatar(bytes);
+            }
+
+            em.merge(user);
+            em.getTransaction().commit();
+
+            return "Avatar zapisany poprawnie.";
+        } catch (Exception e) {
+            if (em != null && em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            return "Błąd uploadu avatara: " + e.getMessage();
+        } finally {
+            if (em != null && em.isOpen()) {
+                em.close();
+            }
+        }
+    }
+
+    @WebMethod
+    public DataHandler getAvatar(@WebParam(name = "userId") Long userId) {
+        EntityManager em = null;
+
+        try {
+            em = JpaUtil.getEntityManager();
+
+            User user = new UserDao(em).findById(userId);
+            if (user == null || user.getAvatar() == null) {
+                throw new RuntimeException("Brak avatara.");
+            }
+
+            byte[] data = user.getAvatar();
+
+            return new DataHandler(
+                    new ByteArrayDataSource(data, "image/jpeg")
+            );
+
+        } catch (Exception e) {
+            throw new RuntimeException("Błąd pobierania avatara.", e);
+        } finally {
+            if (em != null && em.isOpen()) {
+                em.close();
+            }
         }
     }
 
