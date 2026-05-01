@@ -7,8 +7,8 @@ import java.util.List;
 public class SOAPServer {
 
     public static void main(String[] args) {
-        String userServiceUrl = "http://localhost:8080/UserService";
-        String accountServiceUrl = "http://localhost:8081/AccountService";
+        String userServiceUrl = "http://0.0.0.0:8080/UserService";
+        String accountServiceUrl = "http://0.0.0.0:8081/AccountService";
 
         Endpoint userEndpoint = Endpoint.publish(userServiceUrl, new UserSoapService());
         Endpoint accountEndpoint = Endpoint.publish(accountServiceUrl, new AccountSoapService());
