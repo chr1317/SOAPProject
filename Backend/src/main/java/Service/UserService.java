@@ -103,6 +103,54 @@ public class UserService {
         }
     }
 
+    public void updateUser(Long userId, String firstName, String lastName, String email) {
+        EntityManager em = JpaUtil.getEntityManager();
+
+        try {
+            em.getTransaction().begin();
+
+            UserDao userDao = new UserDao(em);
+            User user = userDao.findById(userId);
+
+            if (user == null) {
+                throw new RuntimeException("Użytkownik nie istnieje.");
+            }
+
+            if (firstName == null || firstName.isBlank()) {
+                throw new RuntimeException("Imię jest wymagane.");
+            }
+
+            if (lastName == null || lastName.isBlank()) {
+                throw new RuntimeException("Nazwisko jest wymagane.");
+            }
+
+            if (email == null || email.isBlank()) {
+                throw new RuntimeException("Email jest wymagany.");
+            }
+
+            User existingUser = userDao.findByEmail(email);
+            if (existingUser != null && !existingUser.getId().equals(userId)) {
+                throw new RuntimeException("Podany email jest już zajęty.");
+            }
+
+            user.setFirstName(firstName);
+            user.setLastName(lastName);
+            user.setEmail(email);
+
+            em.merge(user);
+
+            em.getTransaction().commit();
+
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw new RuntimeException("Błąd podczas aktualizacji użytkownika.", e);
+        } finally {
+            em.close();
+        }
+    }
+
     public void deleteUser(Long userId) {
         EntityManager em = JpaUtil.getEntityManager();
 

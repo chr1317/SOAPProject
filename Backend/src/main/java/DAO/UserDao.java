@@ -18,6 +18,8 @@ public class UserDao {
         em.persist(user);
     }
 
+    public void update(User user) { em.merge(user); }
+
     public User findById(Long id) {
         return em.find(User.class, id);
     }

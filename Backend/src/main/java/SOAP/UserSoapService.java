@@ -129,6 +129,21 @@ public class UserSoapService {
     }
 
     @WebMethod
+    public String updateUser(
+            @WebParam(name = "userId") Long userId,
+            @WebParam(name = "firstName") String firstName,
+            @WebParam(name = "lastName") String lastName,
+            @WebParam(name = "email") String email
+    ) {
+        try {
+            userService.updateUser(userId, firstName, lastName, email);
+            return "Użytkownik zaktualizowany poprawnie.";
+        } catch (Exception e) {
+            return "Błąd aktualizacji użytkownika: " + e.getMessage();
+        }
+    }
+
+    @WebMethod
     public String getUserEmailById(@WebParam(name = "userId") Long userId) {
         try {
             User user = userService.findUserById(userId);
