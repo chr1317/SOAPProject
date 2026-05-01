@@ -2,6 +2,7 @@ package SOAP;
 
 import Config.JpaUtil;
 import DAO.UserDao;
+import DTO.UserDto;
 import Entity.User;
 import Service.UserService;
 import jakarta.activation.DataHandler;
@@ -154,14 +155,22 @@ public class UserSoapService {
     }
 
     @WebMethod
-    public List<String> getAllUsers() {
+    public List<UserDto> getAllUsers() {
         try {
             List<User> users = userService.getAllUsers();
+
             return users.stream()
-                    .map(u -> "ID=" + u.getId() + ", email=" + u.getEmail())
+                    .map(u -> new UserDto(
+                            u.getId(),
+                            u.getFirstName(),
+                            u.getLastName(),
+                            u.getEmail(),
+                            u.getAvatar() != null && u.getAvatar().length > 0
+                    ))
                     .collect(Collectors.toList());
+
         } catch (Exception e) {
-            return List.of("Błąd pobierania użytkowników: " + e.getMessage());
+            throw new RuntimeException("Błąd pobierania użytkowników", e);
         }
     }
 
