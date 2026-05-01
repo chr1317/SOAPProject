@@ -1,10 +1,42 @@
 import tkinter as tk
-from tkinter import messagebox, ttk
-from zeep import Client
+from tkinter import messagebox, ttk, filedialog
+from zeep import Client, xsd
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
+from PIL import Image, ImageTk
+import io
 import os
 import logging
+
+# =========================
+# CONFIG - IP SERWERA
+# =========================
+
+SERVER_IP = None
+
+def ask_server_ip():
+    global SERVER_IP
+
+    win = tk.Tk()
+    win.title("Konfiguracja serwera")
+    win.geometry("350x150")
+
+    tk.Label(win, text="Podaj IP serwera SOAP:", font=("Arial", 11)).pack(pady=10)
+
+    entry = tk.Entry(win, width=30)
+    entry.insert(0, "localhost")  # domyślnie
+    entry.pack(pady=5)
+
+    def start():
+        global SERVER_IP
+        SERVER_IP = entry.get().strip()
+        win.destroy()
+
+    tk.Button(win, text="Start", command=start).pack(pady=10)
+
+    win.mainloop()
+
+ask_server_ip()
 
 # =========================
 # LOGGING / MONITORING
@@ -21,13 +53,16 @@ logging.info("Aplikacja startuje...")
 # =========================
 # SOAP
 # =========================
-USER_WSDL = "http://localhost:8080/UserService?wsdl"
-ACCOUNT_WSDL = "http://localhost:8081/AccountService?wsdl"
+USER_WSDL = f"http://{SERVER_IP}:8080/UserService?wsdl"
+ACCOUNT_WSDL = f"http://{SERVER_IP}:8081/AccountService?wsdl"
 
 logging.info("Łączenie z SOAP services...")
 
 user_client = Client(USER_WSDL)
 account_client = Client(ACCOUNT_WSDL)
+
+edit_widgets = {}
+editing_item = None
 
 logged_user_id = None
 
@@ -81,7 +116,6 @@ def get_code(v):
 # =========================
 def login():
     global logged_user_id
-    logging.info("Kliknięto LOGIN")
 
     try:
         ok = user_client.service.authenticateUser(
@@ -89,24 +123,40 @@ def login():
             login_password.get()
         )
 
-        logging.debug(f"SOAP authenticateUser response: {ok}")
-
         if not ok:
-            logging.warning("Błędne dane logowania")
             messagebox.showerror("Logowanie", "Błędne dane")
             return
 
         logged_user_id = int(user_client.service.getUserIdByEmail(login_email.get()))
 
-        logging.info(f"Zalogowano user_id={logged_user_id}")
+        # 👉 UPDATE UI
+        user_label.config(text=f"Użytkownik: {login_email.get()}")
+        logout_btn.pack(side="right", padx=10)
+
+        notebook.select(tab_wallet)  # opcjonalnie przełącz zakładkę
 
         messagebox.showinfo("OK", f"Zalogowano ID={logged_user_id}")
         load_user_currencies()
 
     except Exception as e:
-        logging.exception("Błąd logowania")
         messagebox.showerror("Błąd", str(e))
 
+def logout():
+    global logged_user_id
+
+    logging.info("Wylogowanie")
+
+    logged_user_id = None
+
+    user_label.config(text="Niezalogowany")
+    logout_btn.pack_forget()
+
+    login_email.delete(0, tk.END)
+    login_password.delete(0, tk.END)
+
+    notebook.select(tab_login)
+
+    messagebox.showinfo("Wylogowano", "Zostałeś wylogowany")
 
 def require_login():
     if logged_user_id is None:
@@ -149,6 +199,62 @@ def load_user_currencies():
 # =========================
 # USER
 # =========================
+
+def has_avatar(user_id):
+    try:
+        data = user_client.service.getAvatar(int(user_id))
+        return data is not None
+    except:
+        return False
+    
+def show_avatar(user_id):
+    try:
+        data_handler = user_client.service.getAvatar(int(user_id))
+
+        if not data_handler:
+            messagebox.showinfo("Avatar", "Brak avatara")
+            return
+
+        image_data = data_handler
+
+        image = Image.open(io.BytesIO(image_data))
+        image = image.resize((200, 200))
+
+        img = ImageTk.PhotoImage(image)
+
+        win = tk.Toplevel(root)
+        win.title(f"Avatar user {user_id}")
+
+        label = tk.Label(win, image=img)
+        label.image = img
+        label.pack()
+
+    except Exception as e:
+        messagebox.showerror("Błąd avatara", str(e))
+
+def parse_user(text):
+    try:
+        # zabezpieczenie gdy przyjdzie XML node albo string
+        text = str(text)
+
+        # ID
+        id_ = text.split("ID=")[1].split(",")[0].strip()
+
+        # email
+        email = text.split("email=")[1].split("First name=")[0].strip()
+
+        # first name
+        first = text.split("First name=")[1].split("Last Name=")[0].strip()
+
+        # last name
+        last = text.split("Last Name=")[1].split("avatar=")[0].strip()
+
+        return id_, first, last, email
+
+    except Exception as e:
+        logging.error(f"Parse error: {e} | text={text}")
+        return "", "", "", ""
+
 def create_user():
     logging.info("Tworzenie użytkownika")
 
@@ -169,22 +275,202 @@ def create_user():
 
 
 def get_users():
-    logging.info("Pobieranie listy użytkowników")
-
     try:
         users = user_client.service.getAllUsers()
-        output.delete("1.0", tk.END)
+        print("DEBUG USERS:", users)
 
-        output.insert(tk.END, "=== UŻYTKOWNICY ===\n\n")
+        for row in user_table.get_children():
+            user_table.delete(row)
+
+        if not users:
+            return
+
         for u in users:
-            output.insert(tk.END, f"{u}\n")
+            if not u:
+                continue
 
-        logging.debug(f"Liczba userów: {len(users)}")
+            id_, first, last, email = parse_user(u)
+
+            avatar_icon = "🔍" if has_avatar(id_) else "❌"
+
+            user_table.insert("", "end", values=(
+                id_,
+                first,
+                last,
+                email,
+                avatar_icon,
+                "✏️",
+                "🗑️",
+                "📁"
+            ))
 
     except Exception as e:
-        logging.exception("Błąd get_users")
+        logging.exception("get_users error")
         messagebox.showerror("Błąd", str(e))
 
+def on_table_click(event):
+    item = user_table.identify_row(event.y)
+    column = user_table.identify_column(event.x)
+
+    if not item:
+        return
+
+    values = user_table.item(item, "values")
+    user_id = values[0]
+
+    if column == "#5":
+        show_avatar(user_id)
+    elif column == "#6":  # edit
+        start_inline_edit(item)
+
+    elif column == "#7":  # delete
+        delete_user(user_id)
+
+    elif column == "#8":  # avatar
+        upload_avatar_ui(user_id)
+
+def edit_user(item):
+    values = user_table.item(item, "values")
+
+    edit_window = tk.Toplevel(root)
+    edit_window.title("Edycja użytkownika")
+
+    id_, fn, ln, email, *_ = values
+
+    e_fn = tk.Entry(edit_window)
+    e_fn.insert(0, fn)
+    e_fn.pack()
+
+    e_ln = tk.Entry(edit_window)
+    e_ln.insert(0, ln)
+    e_ln.pack()
+
+    e_email = tk.Entry(edit_window)
+    e_email.insert(0, email)
+    e_email.pack()
+
+    def save():
+        try:
+            res = user_client.service.updateUser(
+                int(id_),
+                e_fn.get(),
+                e_ln.get(),
+                e_email.get()
+            )
+            messagebox.showinfo("OK", res)
+            edit_window.destroy()
+            get_users()
+        except Exception as e:
+            messagebox.showerror("Błąd", str(e))
+
+    tk.Button(edit_window, text="✔ Zapisz", command=save).pack()
+
+def delete_user(user_id):
+    if not messagebox.askyesno("Potwierdzenie", "Usunąć użytkownika?"):
+        return
+
+    try:
+        res = user_client.service.deleteUser(int(user_id))
+        messagebox.showinfo("OK", res)
+        get_users()
+    except Exception as e:
+        messagebox.showerror("Błąd", str(e))
+
+def upload_avatar_ui(user_id):
+    file_path = filedialog.askopenfilename(
+        filetypes=[("Images", "*.jpg *.jpeg *.png")]
+    )
+
+    if not file_path:
+        return
+
+    try:
+        with open(file_path, "rb") as f:
+            data = f.read()
+
+        res = user_client.service.uploadAvatar(int(user_id), data)
+
+        messagebox.showinfo("OK", res)
+        get_users()
+        user_table.update()
+
+    except Exception as e:
+        messagebox.showerror("Błąd", str(e))
+
+
+def start_inline_edit(item):
+    global edit_widgets, editing_item
+
+    cancel_inline_edit()
+
+    editing_item = item
+    values = user_table.item(item, "values")
+
+    cols = ["id", "firstName", "lastName", "email"]
+
+    for i, col in enumerate(cols):
+        bbox = user_table.bbox(item, f"#{i+1}")
+        if not bbox:
+            continue
+
+        x, y, w, h = bbox
+
+        entry = tk.Entry(user_table)
+        entry.insert(0, values[i])
+        entry.place(x=x, y=y, width=w, height=h)
+
+        edit_widgets[col] = entry
+
+    # =========================
+    # PRZYCISKI
+    # =========================
+
+    x_save, y_save, w, h = user_table.bbox(item, "#5")
+
+    save_btn = tk.Button(user_table, text="✔", command=save_inline_edit)
+    save_btn.place(x=x_save, y=y_save, width=35, height=h)
+
+    cancel_btn = tk.Button(user_table, text="✖", command=cancel_inline_edit)
+    cancel_btn.place(x=x_save + 40, y=y_save, width=35, height=h)
+
+    edit_widgets["save_btn"] = save_btn
+    edit_widgets["cancel_btn"] = cancel_btn
+
+def save_inline_edit():
+    global editing_item
+
+    try:
+        id_ = edit_widgets["id"].get()
+        fn = edit_widgets["firstName"].get()
+        ln = edit_widgets["lastName"].get()
+        email = edit_widgets["email"].get()
+
+        res = user_client.service.updateUser(
+            int(id_),
+            fn,
+            ln,
+            email
+        )
+
+        messagebox.showinfo("OK", res)
+
+        cancel_inline_edit()
+        get_users()
+
+    except Exception as e:
+        messagebox.showerror("Błąd", str(e))
+
+def cancel_inline_edit():
+    global edit_widgets, editing_item
+
+    for w in edit_widgets.values():
+        try:
+            w.destroy()
+        except:
+            pass
+
+    edit_widgets = {}
+    editing_item = None
 
 # =========================
 # PORTFEL
@@ -374,6 +660,17 @@ root.title("💰 System Kantorowy PRO")
 root.geometry("1100x800")
 root.configure(bg="#f2f2f2")
 
+user_bar = tk.Frame(root, bg="#dddddd", height=40)
+user_bar.pack(fill="x")
+
+user_label = tk.Label(user_bar, text="Niezalogowany", bg="#dddddd", font=("Arial", 10))
+user_label.pack(side="left", padx=10)
+
+logout_btn = tk.Button(user_bar, text="Wyloguj", command=lambda: logout())
+logout_btn.pack(side="right", padx=10)
+
+logout_btn.pack_forget()
+
 notebook = ttk.Notebook(root)
 notebook.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -397,6 +694,7 @@ tk.Button(login_box, text="Zaloguj", width=25, command=login).pack(pady=10)
 tab_user = tk.Frame(notebook, bg="white")
 notebook.add(tab_user, text="👤 Użytkownicy")
 
+# --- REJESTRACJA ---
 user_box = section(tab_user, "Rejestracja")
 
 first_name = tk.Entry(user_box, width=40)
@@ -417,6 +715,43 @@ add_placeholder(password_entry, "Hasło")
 
 tk.Button(user_box, text="Dodaj użytkownika", width=25, command=create_user).pack(pady=5)
 tk.Button(user_box, text="Pokaż użytkowników", width=25, command=get_users).pack(pady=5)
+
+# --- TABELA USERS ---
+table_frame = section(tab_user, "Lista użytkowników")
+
+columns = ("id", "firstName", "lastName", "email", "avatar", "edit", "delete", "upload")
+
+user_table = ttk.Treeview(table_frame, columns=columns, show="headings", height=10)
+
+# nagłówki
+user_table.heading("id", text="ID")
+user_table.heading("firstName", text="Imię")
+user_table.heading("lastName", text="Nazwisko")
+user_table.heading("email", text="Email")
+user_table.heading("avatar", text="Avatar")
+user_table.heading("edit", text="Edycja")
+user_table.heading("delete", text="Usuń")
+user_table.heading("upload", text="Zmień awatar")
+
+# szerokości
+user_table.column("id", width=50)
+user_table.column("firstName", width=120)
+user_table.column("lastName", width=120)
+user_table.column("email", width=200)
+user_table.column("avatar", width=80)
+user_table.column("edit", width=50)
+user_table.column("delete", width=50)
+user_table.column("upload", width=50)
+
+user_table.pack(fill="both", expand=True)
+
+# scroll (ważne przy większej liczbie userów)
+scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=user_table.yview)
+user_table.configure(yscroll=scrollbar.set)
+scrollbar.pack(side="right", fill="y")
+
+# event kliknięcia
+user_table.bind("<Button-1>", on_table_click)
 
 # PORTFEL
 tab_wallet = tk.Frame(notebook, bg="white")
