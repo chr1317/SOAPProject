@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox, ttk, filedialog
-from zeep import Client, xsd
+from zeep import Client, xsd, Transport
+import requests
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from PIL import Image, ImageTk
@@ -53,13 +54,18 @@ logging.info("Aplikacja startuje...")
 # =========================
 # SOAP
 # =========================
-USER_WSDL = f"http://{SERVER_IP}:8080/UserService?wsdl"
-ACCOUNT_WSDL = f"http://{SERVER_IP}:8081/AccountService?wsdl"
+USER_WSDL = f"https://{SERVER_IP}/UserService?wsdl"
+ACCOUNT_WSDL = f"https://{SERVER_IP}/AccountService?wsdl"
 
 logging.info("Łączenie z SOAP services...")
 
-user_client = Client(USER_WSDL)
-account_client = Client(ACCOUNT_WSDL)
+session = requests.Session()
+session.verify = False  # WYŁĄCZA weryfikację SSL
+
+transport = Transport(session=session)
+
+user_client = Client(USER_WSDL, transport=transport)
+account_client = Client(ACCOUNT_WSDL, transport=transport)
 
 edit_widgets = {}
 editing_item = None
