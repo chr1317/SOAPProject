@@ -9,9 +9,7 @@ import io
 import os
 import logging
 
-# =========================
 # CONFIG - IP SERWERA
-# =========================
 
 SERVER_IP = None
 
@@ -39,9 +37,9 @@ def ask_server_ip():
 
 ask_server_ip()
 
-# =========================
+
 # LOGGING / MONITORING
-# =========================
+
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s | %(levelname)s | %(message)s"
@@ -51,9 +49,8 @@ logging.getLogger("zeep").setLevel(logging.DEBUG)
 
 logging.info("Aplikacja startuje...")
 
-# =========================
 # SOAP
-# =========================
+
 USER_WSDL = f"https://{SERVER_IP}/UserService?wsdl"
 ACCOUNT_WSDL = f"https://{SERVER_IP}/AccountService?wsdl"
 
@@ -73,9 +70,9 @@ editing_item = None
 logged_user_id = None
 
 
-# =========================
+
 # UI STYLE HELPERS
-# =========================
+
 def section(parent, title):
     logging.debug(f"Tworzenie sekcji UI: {title}")
     frame = tk.LabelFrame(parent, text=title, padx=15, pady=15, font=("Arial", 11, "bold"))
@@ -101,9 +98,9 @@ def add_placeholder(entry, text):
     entry.bind("<FocusOut>", out_f)
 
 
-# =========================
+
 # WALUTY
-# =========================
+
 currency_display = {
     "PLN": "🇵🇱 PLN - Polski złoty",
     "EUR": "🇪🇺 EUR - Euro",
@@ -117,9 +114,9 @@ def get_code(v):
     return display_to_code.get(v, v)
 
 
-# =========================
+
 # LOGIN
-# =========================
+
 def login():
     global logged_user_id
 
@@ -135,7 +132,7 @@ def login():
 
         logged_user_id = int(user_client.service.getUserIdByEmail(login_email.get()))
 
-        # 👉 UPDATE UI
+        # UPDATE UI
         user_label.config(text=f"Użytkownik: {login_email.get()}")
         logout_btn.pack(side="right", padx=10)
 
@@ -172,9 +169,9 @@ def require_login():
     return True
 
 
-# =========================
+
 # WALUTY
-# =========================
+
 def load_currencies():
     logging.info("Ładowanie walut...")
     currencies = list(account_client.service.getAvailableCurrencyCodes())
@@ -202,9 +199,9 @@ def load_user_currencies():
     logging.debug(f"Waluty usera: {display}")
 
 
-# =========================
+
 # USER
-# =========================
+
 
 def has_avatar(user_id):
     try:
@@ -240,7 +237,6 @@ def show_avatar(user_id):
 
 def parse_user(text):
     try:
-        # zabezpieczenie gdy przyjdzie XML node albo string
         text = str(text)
 
         # ID
@@ -427,9 +423,9 @@ def start_inline_edit(item):
 
         edit_widgets[col] = entry
 
-    # =========================
+
     # PRZYCISKI
-    # =========================
+
 
     x_save, y_save, w, h = user_table.bbox(item, "#5")
 
@@ -478,9 +474,9 @@ def cancel_inline_edit():
     edit_widgets = {}
     editing_item = None
 
-# =========================
+
 # PORTFEL
-# =========================
+
 def deposit():
     if not require_login():
         return
@@ -549,9 +545,9 @@ def show_balances():
         messagebox.showerror("Błąd portfela", str(e))
 
 
-# =========================
+
 # PDF
-# =========================
+
 def export_pdf():
     if not require_login():
         return
@@ -610,9 +606,9 @@ def export_history_pdf():
         messagebox.showerror("Błąd PDF", str(e))
 
 
-# =========================
+
 # KANTOR
-# =========================
+
 def exchange():
     if not require_login():
         return
@@ -658,9 +654,9 @@ def history():
         messagebox.showerror("Błąd historii", str(e))
 
 
-# =========================
+
 # UI
-# =========================
+
 root = tk.Tk()
 root.title("💰 System Kantorowy PRO")
 root.geometry("1100x800")
@@ -700,7 +696,7 @@ tk.Button(login_box, text="Zaloguj", width=25, command=login).pack(pady=10)
 tab_user = tk.Frame(notebook, bg="white")
 notebook.add(tab_user, text="👤 Użytkownicy")
 
-# --- REJESTRACJA ---
+#  REJESTRACJA 
 user_box = section(tab_user, "Rejestracja")
 
 first_name = tk.Entry(user_box, width=40)
@@ -722,14 +718,14 @@ add_placeholder(password_entry, "Hasło")
 tk.Button(user_box, text="Dodaj użytkownika", width=25, command=create_user).pack(pady=5)
 tk.Button(user_box, text="Pokaż użytkowników", width=25, command=get_users).pack(pady=5)
 
-# --- TABELA USERS ---
+#  TABELA USERS 
 table_frame = section(tab_user, "Lista użytkowników")
 
 columns = ("id", "firstName", "lastName", "email", "avatar", "edit", "delete", "upload")
 
 user_table = ttk.Treeview(table_frame, columns=columns, show="headings", height=10)
 
-# nagłówki
+# NAGŁÓWKI
 user_table.heading("id", text="ID")
 user_table.heading("firstName", text="Imię")
 user_table.heading("lastName", text="Nazwisko")
@@ -739,7 +735,7 @@ user_table.heading("edit", text="Edycja")
 user_table.heading("delete", text="Usuń")
 user_table.heading("upload", text="Zmień awatar")
 
-# szerokości
+# SZEROKOŚCI
 user_table.column("id", width=50)
 user_table.column("firstName", width=120)
 user_table.column("lastName", width=120)
@@ -751,12 +747,12 @@ user_table.column("upload", width=50)
 
 user_table.pack(fill="both", expand=True)
 
-# scroll (ważne przy większej liczbie userów)
+# SCROLL
 scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=user_table.yview)
 user_table.configure(yscroll=scrollbar.set)
 scrollbar.pack(side="right", fill="y")
 
-# event kliknięcia
+# EVENT KLIKNIĘCIA
 user_table.bind("<Button-1>", on_table_click)
 
 # PORTFEL
