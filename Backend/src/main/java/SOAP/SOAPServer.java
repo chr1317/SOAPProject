@@ -1,6 +1,7 @@
 package SOAP;
 
 import jakarta.xml.ws.Endpoint;
+import jakarta.xml.ws.handler.Handler;
 
 import java.util.List;
 
@@ -10,17 +11,19 @@ public class SOAPServer {
         String userServiceUrl = "http://0.0.0.0:8080/UserService";
         String accountServiceUrl = "http://0.0.0.0:8081/AccountService";
 
-        Endpoint userEndpoint = Endpoint.publish(userServiceUrl, new UserSoapService());
-        Endpoint accountEndpoint = Endpoint.publish(accountServiceUrl, new AccountSoapService());
-
+        Endpoint userEndpoint = Endpoint.create(new UserSoapService());
         userEndpoint.getBinding().setHandlerChain(
-                List.of(new LoggingHandler())
+                List.<Handler>of(new LoggingHandler())
         );
+        userEndpoint.publish(userServiceUrl);
 
+        Endpoint accountEndpoint = Endpoint.create(new AccountSoapService());
         accountEndpoint.getBinding().setHandlerChain(
-                List.of(new LoggingHandler())
+                List.<Handler>of(new LoggingHandler())
         );
+        accountEndpoint.publish(accountServiceUrl);
 
+        System.out.println("STARTUJE SOAP.SOAPServer Z HANDLEREM");
         System.out.println("SOAP server działa.");
         System.out.println("UserService: " + userServiceUrl + "?wsdl");
         System.out.println("AccountService: " + accountServiceUrl + "?wsdl");
