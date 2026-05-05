@@ -73,7 +73,7 @@ public class LoggingHandler implements SOAPHandler<SOAPMessageContext> {
 
         transformer.setOutputProperty(OutputKeys.INDENT, "yes");
         transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
-        
+
         transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
 
         StringWriter writer = new StringWriter();
